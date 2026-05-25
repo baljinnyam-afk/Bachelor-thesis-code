@@ -146,28 +146,25 @@ jupyter lab
 
 Loss and learning rate curves across both training phases:
 
-![Training Dashboard](training_model_scripts/training_dashboard.png)
+![Training Dashboard](training_dashboard.png)
 
-### Best Predictions
+### Prediction Results
 
-Sample of the model's top-performing attitude predictions on test images:
+Sample of the model's attitude predictions on test images (softmax output):
 
-![Best Predictions](training_model_scripts/best_predictions.png)
+![Prediction Results](softmax_30_sar_prediction.png)
 
 ### Error Analysis
 
 Quaternion angular error distribution across the test set:
 
-![Error Analysis](training_model_scripts/error_analysis.png)
+![Error Analysis](error_analysis.png)
 
 ### Additional Plots
 
 | File | Description |
 |---|---|
-| `worst_predictions.png` | Worst-case predictions for analysis |
-| `softmax_prediction.png` | Softmax output predictions |
-| `soft_augmentation.png` | Soft-label augmentation visualization |
-| `dist_images.png` | Training image distribution |
+| `softmax_55_sar_prediction.png` | Additional softmax prediction results |
 
 ---
 
