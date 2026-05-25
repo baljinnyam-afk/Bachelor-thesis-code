@@ -1,0 +1,13 @@
+#start here
+
+cd D:
+
+cd D:\Baljka_diplom\spacecraft_dataset
+
+
+conda activate tf_gpu
+
+
+#Launch JupyterLab
+
+jupyter lab
