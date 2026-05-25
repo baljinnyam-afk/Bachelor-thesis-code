@@ -142,12 +142,6 @@ jupyter lab
 
 ## Results
 
-### Training Dashboard
-
-Loss and learning rate curves across both training phases:
-
-![Training Dashboard](training_dashboard.png)
-
 ### Prediction Results
 
 Sample of the model's attitude predictions on test images (softmax output):
