@@ -8,7 +8,10 @@
 
 // ── Constants ────────────────────────────────────────────────
 const IMG_SIZE      = 224;
+const N_BINS        = 16;
 const EULER_LABELS  = ["Roll", "Pitch", "Yaw"];
+const BIN_CENTERS_DEG = [];
+for (let i = 0; i < N_BINS; i++) BIN_CENTERS_DEG.push(-180 + (360 / N_BINS) * (i + 0.5));
 
 /**
  * Convert unit quaternion [qw, qx, qy, qz] to Euler angles in degrees [roll, pitch, yaw].
@@ -32,6 +35,34 @@ function quatToEulerDeg(q) {
   const yaw = Math.atan2(sinyCosp, cosyCosp);
 
   return [roll * (180 / Math.PI), pitch * (180 / Math.PI), yaw * (180 / Math.PI)];
+}
+
+function softmaxToEuler(probs) {
+  const euler = [];
+  for (let ax = 0; ax < 3; ax++) {
+    let expected = 0;
+    const start = ax * N_BINS;
+    for (let b = 0; b < N_BINS; b++) {
+      expected += probs[start + b] * BIN_CENTERS_DEG[b];
+    }
+    euler.push(expected);
+  }
+  return euler;
+}
+
+function eulerToQuat(rollDeg, pitchDeg, yawDeg) {
+  const r = rollDeg * (Math.PI / 360);
+  const p = pitchDeg * (Math.PI / 360);
+  const y = yawDeg * (Math.PI / 360);
+  const cr = Math.cos(r), sr = Math.sin(r);
+  const cp = Math.cos(p), sp = Math.sin(p);
+  const cy = Math.cos(y), sy = Math.sin(y);
+  const qw = cr * cp * cy + sr * sp * sy;
+  const qx = sr * cp * cy - cr * sp * sy;
+  const qy = cr * sp * cy + sr * cp * sy;
+  const qz = cr * cp * sy - sr * sp * cy;
+  const norm = Math.sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
+  return [qw/norm, qx/norm, qy/norm, qz/norm];
 }
 
 // ── Register custom Keras objects for TF.js ─────────────────
@@ -207,11 +238,21 @@ async function runInference(item) {
   try {
     const inputTensor = await preprocessImage(`images/${item.file}`);
     const prediction = model.predict(inputTensor);
-    const predQuat = await prediction.data();
+    const raw = Array.from(await prediction.data());
     inputTensor.dispose();
     prediction.dispose();
 
-    showResults(item.gt, Array.from(predQuat));
+    if (raw.length === 48) {
+      const predEuler = softmaxToEuler(raw);
+      const predQuat = eulerToQuat(predEuler[0], predEuler[1], predEuler[2]);
+      showResults(item.gt, predEuler, predQuat);
+    } else if (raw.length === 4) {
+      const canonical = enforceCanonical(raw);
+      const predEuler = quatToEulerDeg(canonical);
+      showResults(item.gt, predEuler, canonical);
+    } else {
+      setStatus("error", `Unexpected model output size: ${raw.length}`);
+    }
   } catch (err) {
     setStatus("error", `Inference failed: ${err.message}`);
   } finally {
@@ -290,15 +331,12 @@ function showGroundTruthOnly(item) {
   angularErrorBox.classList.add("hidden");
 }
 
-function showResults(gt, pred) {
+function showResults(gt, predEuler, predQuat) {
   quatTbody.innerHTML = "";
 
-  pred = enforceCanonical(pred);
   const gtArr = [gt.qw, gt.qx, gt.qy, gt.qz];
   if (gtArr[0] < 0) gtArr.forEach((v, i) => gtArr[i] = -v);
-
-  const gtEuler   = quatToEulerDeg(gtArr);
-  const predEuler = quatToEulerDeg(pred);
+  const gtEuler = quatToEulerDeg(gtArr);
 
   EULER_LABELS.forEach((label, i) => {
     const gtVal   = gtEuler[i];
@@ -315,7 +353,7 @@ function showResults(gt, pred) {
     quatTbody.appendChild(row);
   });
 
-  const angErr = angularErrorDeg(gtArr, pred);
+  const angErr = angularErrorDeg(gtArr, predQuat);
   angularErrorBox.classList.remove("hidden");
   angularErrorValue.textContent = `${angErr.toFixed(2)}°`;
   angularErrorValue.className = `error-value ${angErrClass(angErr)}`;
