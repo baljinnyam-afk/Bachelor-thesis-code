@@ -75,8 +75,8 @@
   ],
   "modelInfo": {
     "inputSize": 224,
-    "imagenetMean": [0.485, 0.456, 0.406],
-    "imagenetStd": [0.229, 0.224, 0.225],
+    "preprocessing": "resnet50v2",
+    "valueRange": "[-1, 1]",
     "outputLabels": ["qw", "qx", "qy", "qz"]
   }
 }

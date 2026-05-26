@@ -7,8 +7,6 @@
  */
 
 // ── Constants ────────────────────────────────────────────────
-const IMAGENET_MEAN = [0.485, 0.456, 0.406];
-const IMAGENET_STD  = [0.229, 0.224, 0.225];
 const IMG_SIZE      = 224;
 const EULER_LABELS  = ["Roll", "Pitch", "Yaw"];
 
@@ -235,27 +233,15 @@ async function preprocessImage(src) {
       const imageData = ctx.getImageData(0, 0, IMG_SIZE, IMG_SIZE);
       const pixels = imageData.data; // Uint8ClampedArray [r,g,b,a, ...]
 
-      // Convert to float32 tensor [224, 224, 3], normalize to [0, 1]
+      // ResNet50V2 preprocessing: [0,255] → [-1,1]
       const float32 = new Float32Array(IMG_SIZE * IMG_SIZE * 3);
       for (let i = 0; i < IMG_SIZE * IMG_SIZE; i++) {
-        float32[i * 3]     = pixels[i * 4]     / 255.0; // R
-        float32[i * 3 + 1] = pixels[i * 4 + 1] / 255.0; // G
-        float32[i * 3 + 2] = pixels[i * 4 + 2] / 255.0; // B
+        float32[i * 3]     = (pixels[i * 4]     / 127.5) - 1.0;
+        float32[i * 3 + 1] = (pixels[i * 4 + 1] / 127.5) - 1.0;
+        float32[i * 3 + 2] = (pixels[i * 4 + 2] / 127.5) - 1.0;
       }
 
-      let tensor = tf.tensor3d(float32, [IMG_SIZE, IMG_SIZE, 3]);
-
-      // ImageNet normalization
-      const mean = tf.tensor1d(IMAGENET_MEAN);
-      const std  = tf.tensor1d(IMAGENET_STD);
-      tensor = tensor.sub(mean).div(std);
-
-      // Expand dims to [1, 224, 224, 3]
-      const batched = tensor.expandDims(0);
-
-      mean.dispose();
-      std.dispose();
-      tensor.dispose();
+      const batched = tf.tensor3d(float32, [IMG_SIZE, IMG_SIZE, 3]).expandDims(0);
 
       resolve(batched);
     };
