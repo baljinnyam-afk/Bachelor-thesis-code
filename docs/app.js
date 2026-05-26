@@ -10,7 +10,31 @@
 const IMAGENET_MEAN = [0.485, 0.456, 0.406];
 const IMAGENET_STD  = [0.229, 0.224, 0.225];
 const IMG_SIZE      = 224;
-const QUAT_LABELS   = ["qw", "qx", "qy", "qz"];
+const EULER_LABELS  = ["Roll", "Pitch", "Yaw"];
+
+/**
+ * Convert unit quaternion [qw, qx, qy, qz] to Euler angles in degrees [roll, pitch, yaw].
+ * Uses ZYX (intrinsic) convention — matches the Python quat_to_euler_deg in the notebook.
+ */
+function quatToEulerDeg(q) {
+  const [qw, qx, qy, qz] = q;
+
+  // Roll (x-axis rotation)
+  const sinrCosp = 2 * (qw * qx + qy * qz);
+  const cosrCosp = 1 - 2 * (qx * qx + qy * qy);
+  const roll = Math.atan2(sinrCosp, cosrCosp);
+
+  // Pitch (y-axis rotation) — clamped to avoid NaN at gimbal lock
+  const sinp = 2 * (qw * qy - qz * qx);
+  const pitch = Math.asin(Math.max(-1, Math.min(1, sinp)));
+
+  // Yaw (z-axis rotation)
+  const sinyCosp = 2 * (qw * qz + qx * qy);
+  const cosyCosp = 1 - 2 * (qy * qy + qz * qz);
+  const yaw = Math.atan2(sinyCosp, cosyCosp);
+
+  return [roll * (180 / Math.PI), pitch * (180 / Math.PI), yaw * (180 / Math.PI)];
+}
 
 // ── Register custom Keras objects for TF.js ─────────────────
 // The exported model may contain regularizers/initializers that
@@ -260,13 +284,17 @@ function showSelectedImage(item) {
 
 function showGroundTruthOnly(item) {
   const gt = item.gt;
+  const gtQuat = [gt.qw, gt.qx, gt.qy, gt.qz];
+  if (gtQuat[0] < 0) gtQuat.forEach((v, i) => gtQuat[i] = -v);
+  const gtEuler = quatToEulerDeg(gtQuat);
+
   quatTbody.innerHTML = "";
 
-  QUAT_LABELS.forEach((label, i) => {
+  EULER_LABELS.forEach((label, i) => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${label}</td>
-      <td>${gt[label].toFixed(6)}</td>
+      <td>${gtEuler[i].toFixed(2)}°</td>
       <td class="text-muted">—</td>
       <td class="text-muted">—</td>
     `;
@@ -279,26 +307,28 @@ function showGroundTruthOnly(item) {
 function showResults(gt, pred) {
   quatTbody.innerHTML = "";
 
-  // Ensure canonical form (qw >= 0)
   pred = enforceCanonical(pred);
-  const gtArr = QUAT_LABELS.map(l => gt[l]);
+  const gtArr = [gt.qw, gt.qx, gt.qy, gt.qz];
+  if (gtArr[0] < 0) gtArr.forEach((v, i) => gtArr[i] = -v);
 
-  QUAT_LABELS.forEach((label, i) => {
-    const gtVal   = gtArr[i];
-    const predVal = pred[i];
+  const gtEuler   = quatToEulerDeg(gtArr);
+  const predEuler = quatToEulerDeg(pred);
+
+  EULER_LABELS.forEach((label, i) => {
+    const gtVal   = gtEuler[i];
+    const predVal = predEuler[i];
     const err     = Math.abs(gtVal - predVal);
 
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${label}</td>
-      <td>${gtVal.toFixed(6)}</td>
-      <td>${predVal.toFixed(6)}</td>
-      <td class="error-cell ${errClass(err)}">${err.toFixed(6)}</td>
+      <td>${gtVal.toFixed(2)}°</td>
+      <td>${predVal.toFixed(2)}°</td>
+      <td class="error-cell ${eulerErrClass(err)}">${err.toFixed(2)}°</td>
     `;
     quatTbody.appendChild(row);
   });
 
-  // Angular error (geodesic distance on unit quaternion sphere)
   const angErr = angularErrorDeg(gtArr, pred);
   angularErrorBox.classList.remove("hidden");
   angularErrorValue.textContent = `${angErr.toFixed(2)}°`;
@@ -326,9 +356,9 @@ function angularErrorDeg(gt, pred) {
   return 2 * Math.acos(clamped) * (180 / Math.PI);
 }
 
-function errClass(err) {
-  if (err < 0.05) return "good";
-  if (err > 0.3)  return "bad";
+function eulerErrClass(err) {
+  if (err < 5)  return "good";
+  if (err > 15) return "bad";
   return "";
 }
 
