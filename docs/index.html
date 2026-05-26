@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spacecraft Attitude Estimation - Live Demo</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Spacecraft Attitude Estimation</h1>
+    <p class="subtitle">ResNet50-Based Quaternion Regression &mdash; Bachelor Thesis Demo</p>
+  </header>
+
+  <main>
+    <!-- Model Loading Section -->
+    <section id="model-section" class="card">
+      <h2>1. Load Model</h2>
+      <p class="hint">
+        Host the converted TF.js model externally (Google Drive, Hugging Face, etc.)
+        and paste the URL to <code>model.json</code> below.
+      </p>
+      <div class="model-controls">
+        <input
+          type="text"
+          id="model-url"
+          placeholder="https://example.com/model_tfjs/model.json"
+          class="text-input"
+        >
+        <button id="load-model-btn" class="btn btn-primary">Load Model</button>
+      </div>
+      <div id="model-status" class="status-bar hidden">
+        <span id="model-status-text">Ready</span>
+        <div id="model-progress-bar" class="progress-bar">
+          <div id="model-progress-fill" class="progress-fill"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Image Selection -->
+    <section id="image-section" class="card">
+      <h2>2. Select Test Image</h2>
+      <p class="hint">Choose a synthetically rendered spacecraft image to run inference.</p>
+      <div id="image-gallery" class="gallery"></div>
+    </section>
+
+    <!-- Inference Results -->
+    <section id="results-section" class="card hidden">
+      <h2>3. Inference Results</h2>
+      <div class="results-grid">
+        <div class="result-image-panel">
+          <h3>Input Image</h3>
+          <canvas id="preview-canvas" width="224" height="224"></canvas>
+          <div id="image-meta" class="meta"></div>
+        </div>
+        <div class="result-comparison-panel">
+          <h3>Quaternion Comparison</h3>
+          <table id="quat-table" class="quat-table">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Ground Truth</th>
+                <th>Predicted</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody id="quat-tbody"></tbody>
+          </table>
+          <div id="angular-error-box" class="angular-error-box hidden">
+            <span class="error-label">Angular Error</span>
+            <span id="angular-error-value" class="error-value">--</span>
+          </div>
+          <div id="run-inference-btn-wrapper" class="hidden">
+            <button id="run-inference-btn" class="btn btn-primary btn-large">
+              Run Inference
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Bachelor Thesis &mdash; Spacecraft Attitude Estimation Using Deep Learning</p>
+    <p>
+      <a href="https://github.com/baljinnyam-afk/Bachelor-thesis-code" target="_blank" rel="noopener">
+        GitHub Repository
+      </a>
+    </p>
+  </footer>
+
+  <!-- Hidden canvas for image preprocessing -->
+  <canvas id="preprocess-canvas" width="224" height="224" style="display:none;"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
