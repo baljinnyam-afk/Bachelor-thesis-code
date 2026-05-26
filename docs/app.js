@@ -12,6 +12,42 @@ const IMAGENET_STD  = [0.229, 0.224, 0.225];
 const IMG_SIZE      = 224;
 const QUAT_LABELS   = ["qw", "qx", "qy", "qz"];
 
+// ── Register custom Keras objects for TF.js ─────────────────
+// The exported model may contain regularizers/initializers that
+// TF.js doesn't recognize by default. Register them here.
+
+class L2Regularizer extends tf.Regularizer {
+  constructor(config) { super(config); this.l2 = config.l2 ?? 0.01; }
+  apply(x) { return tf.tidy(() => tf.mul(this.l2, tf.sum(tf.square(x)))); }
+  getConfig() { return { l2: this.l2 }; }
+  static get className() { return "L2"; }
+}
+tf.serialization.registerClass(L2Regularizer);
+
+class L1Regularizer extends tf.Regularizer {
+  constructor(config) { super(config); this.l1 = config.l1 ?? 0.01; }
+  apply(x) { return tf.tidy(() => tf.mul(this.l1, tf.sum(tf.abs(x)))); }
+  getConfig() { return { l1: this.l1 }; }
+  static get className() { return "L1"; }
+}
+tf.serialization.registerClass(L1Regularizer);
+
+class L1L2Regularizer extends tf.Regularizer {
+  constructor(config) {
+    super(config);
+    this.l1 = config.l1 ?? 0.01;
+    this.l2 = config.l2 ?? 0.01;
+  }
+  apply(x) { return tf.tidy(() => {
+    const l1Term = tf.mul(this.l1, tf.sum(tf.abs(x)));
+    const l2Term = tf.mul(this.l2, tf.sum(tf.square(x)));
+    return tf.add(l1Term, l2Term);
+  }); }
+  getConfig() { return { l1: this.l1, l2: this.l2 }; }
+  static get className() { return "L1L2"; }
+}
+tf.serialization.registerClass(L1L2Regularizer);
+
 // ── State ────────────────────────────────────────────────────
 let model       = null;
 let demoData    = null;
