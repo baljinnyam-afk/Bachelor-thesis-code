@@ -16,37 +16,36 @@ const QUAT_LABELS   = ["qw", "qx", "qy", "qz"];
 // The exported model may contain regularizers/initializers that
 // TF.js doesn't recognize by default. Register them here.
 
-class L2Regularizer extends tf.Regularizer {
-  constructor(config) { super(config); this.l2 = config.l2 ?? 0.01; }
+class L2 {
+  constructor(config) { this.l2 = config?.l2 ?? 0.01; }
   apply(x) { return tf.tidy(() => tf.mul(this.l2, tf.sum(tf.square(x)))); }
-  getConfig() { return { l2: this.l2 }; }
+  getConfig() { return { l2: this.l2, __class__: "L2" }; }
   static get className() { return "L2"; }
 }
-tf.serialization.registerClass(L2Regularizer);
+tf.serialization.registerClass(L2);
 
-class L1Regularizer extends tf.Regularizer {
-  constructor(config) { super(config); this.l1 = config.l1 ?? 0.01; }
+class L1 {
+  constructor(config) { this.l1 = config?.l1 ?? 0.01; }
   apply(x) { return tf.tidy(() => tf.mul(this.l1, tf.sum(tf.abs(x)))); }
-  getConfig() { return { l1: this.l1 }; }
+  getConfig() { return { l1: this.l1, __class__: "L1" }; }
   static get className() { return "L1"; }
 }
-tf.serialization.registerClass(L1Regularizer);
+tf.serialization.registerClass(L1);
 
-class L1L2Regularizer extends tf.Regularizer {
+class L1L2 {
   constructor(config) {
-    super(config);
-    this.l1 = config.l1 ?? 0.01;
-    this.l2 = config.l2 ?? 0.01;
+    this.l1 = config?.l1 ?? 0.01;
+    this.l2 = config?.l2 ?? 0.01;
   }
   apply(x) { return tf.tidy(() => {
     const l1Term = tf.mul(this.l1, tf.sum(tf.abs(x)));
     const l2Term = tf.mul(this.l2, tf.sum(tf.square(x)));
     return tf.add(l1Term, l2Term);
   }); }
-  getConfig() { return { l1: this.l1, l2: this.l2 }; }
+  getConfig() { return { l1: this.l1, l2: this.l2, __class__: "L1L2" }; }
   static get className() { return "L1L2"; }
 }
-tf.serialization.registerClass(L1L2Regularizer);
+tf.serialization.registerClass(L1L2);
 
 // ── State ────────────────────────────────────────────────────
 let model       = null;
