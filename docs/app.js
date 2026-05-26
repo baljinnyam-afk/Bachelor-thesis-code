@@ -37,15 +37,24 @@ function quatToEulerDeg(q) {
   return [roll * (180 / Math.PI), pitch * (180 / Math.PI), yaw * (180 / Math.PI)];
 }
 
+/**
+ * Convert UrsoNet softmax outputs to Euler angles in degrees.
+ * Uses circular mean (atan2-based) to handle ±180° wraparound correctly.
+ * Matches the Python bins_to_quaternion → circular_mean_rad logic.
+ */
 function softmaxToEuler(probs) {
   const euler = [];
+  const centersRad = BIN_CENTERS_DEG.map(d => d * Math.PI / 180);
+
   for (let ax = 0; ax < 3; ax++) {
-    let expected = 0;
+    let sinSum = 0, cosSum = 0;
     const start = ax * N_BINS;
     for (let b = 0; b < N_BINS; b++) {
-      expected += probs[start + b] * BIN_CENTERS_DEG[b];
+      const p = probs[start + b];
+      sinSum += p * Math.sin(centersRad[b]);
+      cosSum += p * Math.cos(centersRad[b]);
     }
-    euler.push(expected);
+    euler.push(Math.atan2(sinSum, cosSum) * 180 / Math.PI);
   }
   return euler;
 }
@@ -245,10 +254,15 @@ async function runInference(item) {
     if (raw.length === 48) {
       const predEuler = softmaxToEuler(raw);
       const predQuat = eulerToQuat(predEuler[0], predEuler[1], predEuler[2]);
+      const debug = `Output: ${raw.length} values | ` +
+        `Roll softmax: [${raw.slice(0,16).map(v=>v.toFixed(3)).join(', ')}] | ` +
+        `Euler: R=${predEuler[0].toFixed(1)}° P=${predEuler[1].toFixed(1)}° Y=${predEuler[2].toFixed(1)}°`;
+      setStatus("success", debug);
       showResults(item.gt, predEuler, predQuat);
     } else if (raw.length === 4) {
       const canonical = enforceCanonical(raw);
       const predEuler = quatToEulerDeg(canonical);
+      setStatus("success", `Output: ${raw.length} values | Quat: [${raw.map(v=>v.toFixed(4)).join(', ')}]`);
       showResults(item.gt, predEuler, canonical);
     } else {
       setStatus("error", `Unexpected model output size: ${raw.length}`);
