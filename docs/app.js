@@ -192,6 +192,8 @@ function createModelHandler(modelUrl) {
             w.name = w.name.replace(/:0$/, "");
           }
         }
+        delete modelJSON.modelTopology.keras_version;
+        delete modelJSON.modelSpec;
       }
 
       const baseUrl = modelUrl.substring(0, modelUrl.lastIndexOf("/") + 1);
