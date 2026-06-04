@@ -176,6 +176,64 @@ function bindEvents() {
 }
 
 // ── Model Loading ────────────────────────────────────────────
+
+function createModelHandler(modelUrl) {
+  return {
+    async load() {
+      setStatus("loading", "Fetching model.json...");
+      const resp = await fetch(modelUrl);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching model.json`);
+      const modelJSON = await resp.json();
+
+      const needsFix = modelJSON.weightsManifest?.[0]?.weights?.[0]?.name?.includes(":0");
+      if (needsFix) {
+        for (const group of modelJSON.weightsManifest) {
+          for (const w of group.weights) {
+            w.name = w.name.replace(/:0$/, "");
+          }
+        }
+      }
+
+      const baseUrl = modelUrl.substring(0, modelUrl.lastIndexOf("/") + 1);
+      const weightSpecs = [];
+      const shardBuffers = [];
+      let loadedShards = 0;
+      const totalShards = modelJSON.weightsManifest.reduce(
+        (n, g) => n + g.paths.length, 0
+      );
+
+      for (const group of modelJSON.weightsManifest) {
+        weightSpecs.push(...group.weights);
+        for (const path of group.paths) {
+          setStatus("loading", `Loading weights ${loadedShards + 1}/${totalShards}...`);
+          const shardResp = await fetch(baseUrl + path);
+          if (!shardResp.ok) throw new Error(`HTTP ${shardResp.status} fetching ${path}`);
+          shardBuffers.push(await shardResp.arrayBuffer());
+          loadedShards++;
+          setProgress(Math.round((loadedShards / totalShards) * 100));
+        }
+      }
+
+      const totalSize = shardBuffers.reduce((s, b) => s + b.byteLength, 0);
+      const combined = new Uint8Array(totalSize);
+      let offset = 0;
+      for (const buf of shardBuffers) {
+        combined.set(new Uint8Array(buf), offset);
+        offset += buf.byteLength;
+      }
+
+      return {
+        modelTopology: modelJSON.modelTopology,
+        weightSpecs,
+        weightData: combined.buffer,
+        format: modelJSON.format,
+        generatedBy: modelJSON.generatedBy,
+        convertedBy: modelJSON.convertedBy,
+      };
+    }
+  };
+}
+
 async function onLoadModel() {
   const url = modelUrlInput.value.trim();
   if (!url) {
@@ -188,12 +246,8 @@ async function onLoadModel() {
   setProgress(10);
 
   try {
-    model = await tf.loadLayersModel(url, {
-      onProgress: (fraction) => {
-        setProgress(Math.round(fraction * 100));
-        setStatus("loading", `Loading model... ${Math.round(fraction * 100)}%`);
-      }
-    });
+    const handler = createModelHandler(url);
+    model = await tf.loadLayersModel(handler);
 
     setProgress(100);
     setStatus("success", `Model loaded successfully (${model.params?.toLocaleString?.() ?? "?"} params)`);
