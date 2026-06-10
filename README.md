@@ -1,4 +1,4 @@
-# Хиймэл оюунд суурилсан бага оврын хиймэл дагуулын чиглэл тогтоох системийн оновчлол
+<p align="center"> # Хиймэл оюунд суурилсан бага оврын хиймэл дагуулын чиглэл тогтоох системийн оновчлол </p>
 
 **Optimization of an Artificial Intelligence-Based Attitude Determination System for Small Satellites**
 
